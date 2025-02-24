@@ -4,13 +4,54 @@ import { validateBook } from '../middleware/validation';
 
 const router = Router();
 
-// Get all books
+// Get categories
+router.get('/categories', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const { data, error } = await supabase
+      .from('category')
+      .select('*')
+      .order('name');
+
+    if (error) throw error;
+    res.json(data);
+  } catch (error: any) {
+    res.status(500).json({ 
+      error: 'Failed to fetch categories',
+      details: error?.message 
+    });
+  }
+});
+
+// Get collections
+router.get('/collections', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const { data, error } = await supabase
+      .from('collection')
+      .select('*')
+      .order('name');
+
+    if (error) throw error;
+    res.json(data);
+  } catch (error: any) {
+    res.status(500).json({ 
+      error: 'Failed to fetch collections',
+      details: error?.message 
+    });
+  }
+});
+
+// Get all books with category and collection info
 router.get('/', async (_req: Request, res: Response): Promise<void> => {
   try {
     const { data, error } = await supabase
       .from('book')
-      .select('*');
-    
+      .select(`
+        *,
+        category:category_id (id, name),
+        collection:collection_id (id, name)
+      `)
+      .order('name');
+
     if (error) throw error;
     res.json(data);
   } catch (error: any) {
@@ -26,7 +67,11 @@ router.get('/:id', async (req: Request<{id: string}>, res: Response): Promise<vo
   try {
     const { data, error } = await supabase
       .from('book')
-      .select('*')
+      .select(`
+        *,
+        category:category_id (id, name),
+        collection:collection_id (id, name)
+      `)
       .eq('id', req.params.id)
       .single();
     
@@ -46,14 +91,24 @@ router.get('/:id', async (req: Request<{id: string}>, res: Response): Promise<vo
 });
 
 // Create book
-router.post('/', validateBook, async (req: Request, res: Response): Promise<void> => {
+router.post('/', async (req: Request, res: Response): Promise<void> => {
   try {
     const { data, error } = await supabase
       .from('book')
-      .insert(req.body)
-      .select()
+      .insert({
+        name: req.body.name,
+        category_id: req.body.category_id,
+        collection_id: req.body.collection_id,
+        publisher: req.body.publisher,
+        launch_date: req.body.launch_date || new Date().toISOString()
+      })
+      .select(`
+        *,
+        category:category_id (id, name),
+        collection:collection_id (id, name)
+      `)
       .single();
-    
+
     if (error) throw error;
     res.status(201).json(data);
   } catch (error: any) {
@@ -65,25 +120,49 @@ router.post('/', validateBook, async (req: Request, res: Response): Promise<void
 });
 
 // Update book
-router.put('/:id', validateBook, async (req: Request<{id: string}>, res: Response): Promise<void> => {
+router.put('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
+    const { id } = req.params;
     const { data, error } = await supabase
       .from('book')
-      .update(req.body)
-      .eq('id', req.params.id)
-      .select()
+      .update({
+        name: req.body.name,
+        category_id: req.body.category_id,
+        collection_id: req.body.collection_id,
+        publisher: req.body.publisher,
+        launch_date: req.body.launch_date
+      })
+      .eq('id', id)
+      .select(`
+        *,
+        category:category_id (id, name),
+        collection:collection_id (id, name)
+      `)
       .single();
-    
+
     if (error) throw error;
-    if (!data) {
-      res.status(404).json({ error: 'Book not found' });
-      return;
-    }
-    
     res.json(data);
   } catch (error: any) {
     res.status(500).json({ 
       error: 'Failed to update book',
+      details: error?.message 
+    });
+  }
+});
+
+// Delete book
+router.delete('/:id', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { error } = await supabase
+      .from('book')
+      .delete()
+      .eq('id', req.params.id);
+
+    if (error) throw error;
+    res.status(204).send();
+  } catch (error: any) {
+    res.status(500).json({ 
+      error: 'Failed to delete book',
       details: error?.message 
     });
   }

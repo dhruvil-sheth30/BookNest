@@ -25,27 +25,18 @@ router.get('/never-borrowed', async (_req: Request, res: Response): Promise<void
   }
 });
 
-// Outstanding books
+// Outstanding books - simplified version
 router.get('/outstanding', async (_req: Request, res: Response): Promise<void> => {
   try {
     const { data, error } = await supabase
-      .from('issuance')
-      .select(`
-        member:member_id (name),
-        book:book_id (name, publisher),
-        issue_date,
-        return_date
-      `)
-      .eq('status', 'pending')
-      .order('return_date');
+      .from('outstanding_books')
+      .select('*');
     
     if (error) throw error;
-    res.json(data);
+    res.json(data || []);
   } catch (error: any) {
-    res.status(500).json({ 
-      error: 'Failed to fetch outstanding books',
-      details: error?.message 
-    });
+    console.error('Error fetching outstanding books:', error);
+    res.status(500).json({ error: 'Failed to fetch outstanding books' });
   }
 });
 
@@ -63,6 +54,56 @@ router.get('/most-borrowed', async (_req: Request, res: Response): Promise<void>
       error: 'Failed to fetch most borrowed books',
       details: error?.message 
     });
+  }
+});
+
+// Stats endpoint - simplified version
+router.get('/stats', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const [
+      { count: totalBooks },
+      { count: totalMembers },
+      { data: activeIssuances },
+      { data: outstandingBooks },
+      { data: pendingReturns }
+    ] = await Promise.all([
+      supabase.from('book').select('*', { count: 'exact', head: true }),
+      supabase.from('member').select('*', { count: 'exact', head: true }),
+      supabase.from('issuance').select('*').eq('status', 'pending'),
+      supabase.from('issuance')
+        .select(`
+          book:book_id (name),
+          member:member_id (name),
+          issue_date,
+          return_date,
+          status
+        `)
+        .eq('status', 'pending')
+        .lt('return_date', new Date().toISOString())
+        .order('return_date'),
+      supabase.from('issuance')
+        .select(`
+          book:book_id (name),
+          member:member_id (name),
+          issue_date,
+          return_date,
+          status
+        `)
+        .eq('status', 'pending')
+        .gte('return_date', new Date().toISOString())
+        .order('return_date')
+    ]);
+
+    res.json({
+      totalBooks: totalBooks || 0,
+      totalMembers: totalMembers || 0,
+      activeIssuances: activeIssuances?.length || 0,
+      outstandingBooks: outstandingBooks || [],
+      pendingReturns: pendingReturns || []
+    });
+  } catch (error: any) {
+    console.error('Error fetching stats:', error);
+    res.status(500).json({ error: 'Failed to fetch stats' });
   }
 });
 

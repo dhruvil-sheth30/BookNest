@@ -1,137 +1,182 @@
 import React from 'react';
-import { supabase } from '../lib/supabase';
 import { format } from 'date-fns';
-import { Input } from '../components/Input';
+import { queryAPI } from '../services/api';
+import { FiBook, FiUsers, FiBookOpen, FiAlertCircle, FiClock } from 'react-icons/fi';
 
 export function Dashboard() {
-  const [pendingReturns, setPendingReturns] = React.useState([]);
+  const [stats, setStats] = React.useState({
+    totalBooks: 0,
+    totalMembers: 0,
+    activeIssuances: 0,
+    outstandingBooks: [],
+    pendingReturns: []
+  });
   const [loading, setLoading] = React.useState(true);
-  const [selectedDate, setSelectedDate] = React.useState(new Date().toISOString().split('T')[0]);
+  const [error, setError] = React.useState('');
 
-  const fetchPendingReturns = async () => {
+  const fetchDashboardData = async () => {
     try {
-      const { data, error } = await supabase
-        .from('issuance')
-        .select(`
-          id,
-          issue_date,
-          return_date,
-          status,
-          book:book_id(name),
-          member:member_id(name, email)
-        `)
-        .eq('status', 'pending')
-        .order('return_date');
-
-      if (error) throw error;
-      setPendingReturns(data || []);
-    } catch (error) {
-      console.error('Error fetching pending returns:', error);
+      const statsData = await queryAPI.getStats();
+      setStats(statsData);
+    } catch (err) {
+      setError(err.message);
+      console.error('Error fetching dashboard data:', err);
     } finally {
       setLoading(false);
     }
   };
 
   React.useEffect(() => {
-    fetchPendingReturns();
+    fetchDashboardData();
   }, []);
+
+  const getStatusColor = (status: string, returnDate: string) => {
+    if (status === 'returned') return 'bg-green-100 text-green-800';
+    if (status === 'pending') {
+      const isOverdue = new Date(returnDate) < new Date();
+      return isOverdue ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800';
+    }
+    return 'bg-gray-100 text-gray-800';
+  };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-gray-600">Loading...</div>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-gray-600 animate-pulse">Loading...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-red-600 bg-red-50 p-4 rounded-lg shadow">
+          Error: {error}
+        </div>
       </div>
     );
   }
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-gray-800 mb-6">Dashboard</h1>
-      
-      <div className="mt-6 bg-white rounded-lg shadow p-4 sm:p-6">
-        <h2 className="text-lg font-semibold text-gray-700 mb-4">
-          Pending Returns ({pendingReturns.length})
-        </h2>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Book
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Member
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Issue Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Return Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {pendingReturns.map((item) => (
-                <tr key={item.id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {item.book?.name}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{item.member?.name}</div>
-                    <div className="text-sm text-gray-500">{item.member?.email}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {format(new Date(item.issue_date), 'MMM dd, yyyy')}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {format(new Date(item.return_date), 'MMM dd, yyyy')}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                      {item.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-              {pendingReturns.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">
-                    No pending returns found
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+    <div className="space-y-8 p-6">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard 
+          icon={<FiBook className="w-6 h-6" />} 
+          title="Total Books" 
+          value={stats.totalBooks}
+          color="bg-blue-50 text-blue-600"
+        />
+        <StatCard 
+          icon={<FiUsers className="w-6 h-6" />} 
+          title="Total Members" 
+          value={stats.totalMembers}
+          color="bg-green-50 text-green-600"
+        />
+        <StatCard 
+          icon={<FiBookOpen className="w-6 h-6" />} 
+          title="Active Issuances" 
+          value={stats.activeIssuances}
+          color="bg-purple-50 text-purple-600"
+        />
+        <StatCard 
+          icon={<FiAlertCircle className="w-6 h-6" />} 
+          title="Outstanding Books" 
+          value={stats.outstandingBooks.length}
+          color="bg-red-50 text-red-600"
+        />
       </div>
 
-      {/* Statistics Section */}
-      <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Outstanding Books Panel */}
+        <div className="bg-white rounded-xl shadow-md overflow-hidden">
+          <div className="p-4 bg-red-50 border-b border-red-100">
             <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                </svg>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Total Pending Returns
-                  </dt>
-                  <dd className="text-lg font-medium text-gray-900">
-                    {pendingReturns.length}
-                  </dd>
-                </dl>
-              </div>
+              <FiAlertCircle className="w-5 h-5 text-red-500 mr-2" />
+              <h2 className="text-lg font-semibold text-red-700">Outstanding Books</h2>
             </div>
+          </div>
+          <div className="p-4">
+            {stats.outstandingBooks.length > 0 ? (
+              <div className="divide-y divide-gray-100">
+                {stats.outstandingBooks.map((book: any, index: number) => (
+                  <div key={index} className="py-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-medium">{book.book.name}</h3>
+                        <p className="text-sm text-gray-500">{book.member.name}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-red-600 font-medium">
+                          Due: {format(new Date(book.return_date), 'PP')}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Issued: {format(new Date(book.issue_date), 'PP')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-center py-4">No outstanding books</p>
+            )}
+          </div>
+        </div>
+
+        {/* Pending Returns Panel */}
+        <div className="bg-white rounded-xl shadow-md overflow-hidden">
+          <div className="p-4 bg-blue-50 border-b border-blue-100">
+            <div className="flex items-center">
+              <FiClock className="w-5 h-5 text-blue-500 mr-2" />
+              <h2 className="text-lg font-semibold text-blue-700">Pending Returns</h2>
+            </div>
+          </div>
+          <div className="p-4">
+            {stats.pendingReturns.length > 0 ? (
+              <div className="divide-y divide-gray-100">
+                {stats.pendingReturns.map((issue: any, index: number) => (
+                  <div key={index} className="py-3">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-medium">{issue.book.name}</h3>
+                        <p className="text-sm text-gray-500">{issue.member.name}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-blue-600 font-medium">
+                          Due: {format(new Date(issue.return_date), 'PP')}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Issued: {format(new Date(issue.issue_date), 'PP')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-center py-4">No pending returns</p>
+            )}
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function StatCard({ icon, title, value, color }: { 
+  icon: React.ReactNode; 
+  title: string; 
+  value: number;
+  color: string;
+}) {
+  return (
+    <div className="bg-white rounded-xl shadow-md p-6">
+      <div className={`inline-flex items-center justify-center p-3 rounded-lg ${color}`}>
+        {icon}
+      </div>
+      <h3 className="mt-4 text-xl font-semibold">{value}</h3>
+      <p className="text-gray-500">{title}</p>
     </div>
   );
 }

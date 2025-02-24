@@ -83,14 +83,24 @@ router.post('/', validateIssuance, async (req: Request, res: Response): Promise<
   }
 });
 
-// Update issuance
-router.put('/:id', validateIssuance, async (req: Request<{id: string}>, res: Response): Promise<void> => {
+// Update issuance status
+router.put('/:id', async (req: Request, res: Response): Promise<void> => {
   try {
+    const { status } = req.body;
+    
+    if (!status || !['pending', 'returned'].includes(status)) {
+      res.status(400).json({ 
+        error: 'Validation failed',
+        details: 'Invalid status value' 
+      });
+      return;
+    }
+
     const { data, error } = await supabase
       .from('issuance')
-      .update({
-        status: req.body.status,
-        return_date: req.body.return_date
+      .update({ 
+        status,
+        return_date: status === 'returned' ? new Date().toISOString() : null 
       })
       .eq('id', req.params.id)
       .select(`
