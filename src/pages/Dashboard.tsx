@@ -48,11 +48,10 @@ export function Dashboard() {
     <div>
       <h1 className="text-2xl font-bold text-gray-800 mb-6">Dashboard</h1>
       
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="mt-6 bg-white rounded-lg shadow p-4 sm:p-6">
         <h2 className="text-lg font-semibold text-gray-700 mb-4">
           Pending Returns ({pendingReturns.length})
         </h2>
-        
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">

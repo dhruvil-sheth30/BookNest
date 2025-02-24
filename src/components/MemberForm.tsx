@@ -64,33 +64,35 @@ export function MemberForm({ memberId, onSuccess, onCancel }: MemberFormProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <Input
-        label="Name"
-        value={formData.name}
-        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-        required
-      />
-
-      <Input
-        type="email"
-        label="Email"
-        value={formData.email}
-        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-        required
-      />
-
-      <Input
-        label="Phone"
-        value={formData.phone}
-        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-        required
-      />
-
-      <div className="flex justify-end space-x-2">
-        <Button type="button" variant="secondary" onClick={onCancel}>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Input
+          label="Name"
+          value={formData.name}
+          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          required
+        />
+        
+        <Input
+          type="email"
+          label="Email"
+          value={formData.email}
+          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+          required
+        />
+        
+        <Input
+          label="Phone"
+          value={formData.phone}
+          onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+          required
+        />
+      </div>
+      
+      <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
+        <Button type="button" variant="secondary" onClick={onCancel} className="w-full sm:w-auto">
           Cancel
         </Button>
-        <Button type="submit" variant="primary" disabled={loading}>
+        <Button type="submit" variant="primary" disabled={loading} className="w-full sm:w-auto">
           {loading ? 'Saving...' : memberId ? 'Update' : 'Create'}
         </Button>
       </div>
