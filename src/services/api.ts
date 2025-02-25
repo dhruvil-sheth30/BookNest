@@ -1,29 +1,24 @@
-const API_URL = import.meta.env.VITE_API_URL;
-const API_KEY = import.meta.env.VITE_API_KEY;
+import { API_URL } from '../config';
 
 interface ApiConfig {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   body?: any;
 }
 
-export const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
-  const response = await fetch(`http://localhost:3002${endpoint}`, {
+export const apiRequest = async (endpoint: string, options = {}) => {
+  const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
       ...options.headers,
     },
-    body: options.body && typeof options.body === 'string' 
-      ? options.body 
-      : JSON.stringify(options.body),
   });
-
+  
   if (!response.ok) {
-    const error = await response.text();
-    console.error('API Error:', error);
-    throw new Error(`Failed to ${options.method || 'fetch'} ${endpoint.split('/').pop()}`);
+    const error = await response.json();
+    throw error;
   }
-
+  
   return response.json();
 };
 
